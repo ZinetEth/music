@@ -134,6 +134,7 @@ function App() {
     notice,
     setNotice,
     listings,
+    songsCatalog,
     createdPlaylist,
     handleCreatePlaylist,
     handleSellPlaylist,
@@ -280,7 +281,7 @@ function App() {
               <article className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
                 <h3 className="text-lg font-semibold">Create Playlist</h3>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Create first, then you can list it for sale.
+                  Include seller ID and at least one song, then list it.
                 </p>
                 <form
                   onSubmit={(event) => handleCreatePlaylist(event, () => setActiveTab('Store'))}
@@ -311,6 +312,32 @@ function App() {
                     placeholder="Cover URL"
                     className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm"
                   />
+                  <input
+                    name="seller_user_id"
+                    required
+                    placeholder="Seller user ID (example: user_2)"
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm"
+                  />
+                  {songsCatalog.length > 0 && (
+                    <fieldset className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
+                      <legend className="px-1 text-xs font-semibold text-zinc-600">Select songs</legend>
+                      <div className="mt-1 grid gap-1.5">
+                        {songsCatalog.slice(0, 12).map((song) => (
+                          <label key={song.id} className="flex items-center gap-2 text-xs text-zinc-700">
+                            <input type="checkbox" name="song_ids" value={song.id} />
+                            <span>
+                              #{song.id} {song.title} ({song.tier})
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  )}
+                  <input
+                    name="song_ids_manual"
+                    placeholder="Song IDs (comma-separated, e.g. 1,4,7)"
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm"
+                  />
                   <button
                     type="submit"
                     className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
@@ -325,13 +352,14 @@ function App() {
               <article className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
                 <h3 className="text-lg font-semibold">Sell Your Playlist</h3>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {createdPlaylist.name} by {createdPlaylist.creator}
+                  {createdPlaylist.name} by {createdPlaylist.creator} | {createdPlaylist.song_ids.length} songs
                 </p>
                 <form onSubmit={handleSellPlaylist} className="mt-4 grid gap-2.5">
                   <input
                     name="price"
                     type="number"
-                    min="1"
+                    min="0"
+                    step="0.01"
                     required
                     placeholder="Price"
                     className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm"
@@ -525,3 +553,4 @@ function App() {
 }
 
 export default App
+

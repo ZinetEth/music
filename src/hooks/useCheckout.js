@@ -11,10 +11,15 @@ export function useCheckout(apiBase, setNotice) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playlistId }),
       })
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
       if (data.checkoutUrl) {
         window.location.assign(data.checkoutUrl)
+        return
+      }
+
+      if (!response.ok) {
+        setNotice(typeof data.detail === 'string' ? data.detail : 'Checkout request failed.')
         return
       }
 
