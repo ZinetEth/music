@@ -108,6 +108,26 @@ const GZIP_REGEX = /\bgzip\b/;
 const ZLIB_REGEX = /bdeflate\b/;
 
 const currentState: SongState = {};
+let currentAllowedImageOrigin: null | string = null;
+
+const isAllowedProxyTarget = (targetUrl: string, allowedOrigin: null | string): boolean => {
+    if (!allowedOrigin) {
+        return false;
+    }
+
+    try {
+        const target = new URL(targetUrl);
+        const allowed = new URL(allowedOrigin);
+
+        if (!["http:", "https:"].includes(target.protocol)) {
+            return false;
+        }
+
+        return target.origin === allowed.origin;
+    } catch {
+        return false;
+    }
+};
 
 const getEncoding = (encoding: string | string[]): Encoding => {
     const encodingArray = Array.isArray(encoding) ? encoding : [encoding];
@@ -410,6 +430,16 @@ const enableServer = (config: RemoteConfig): Promise<void> => {
                                 );
 
                                 if (!toFetch) return;
+                                if (!isAllowedProxyTarget(toFetch, currentAllowedImageOrigin)) {
+                                    if (ws.readyState === WebSocket.OPEN) {
+                                        send({
+                                            client: ws,
+                                            data: 'Blocked proxy target',
+                                            event: 'error',
+                                        });
+                                    }
+                                    return;
+                                }
 
                                 axios
                                     .get(toFetch, { responseType: 'arraybuffer' })
@@ -620,17 +650,26 @@ ipcMain.on('update-playback', (_event, status: PlayerStatus) => {
     broadcast({ data: status, event: 'playback' });
 });
 
-ipcMain.on('update-song', (_event, song: QueueSong | undefined, imageUrl?: null | string) => {
+ipcMain.on(
+    'update-song',
+    (
+        _event,
+        song: QueueSong | undefined,
+        imageUrl?: null | string,
+        allowedImageOrigin?: null | string,
+    ) => {
     const songChanged = song?.id !== currentState.song?.id;
     if (song) {
         song.imageUrl = imageUrl || null;
     }
+    currentAllowedImageOrigin = allowedImageOrigin || null;
     currentState.song = song;
 
     if (songChanged) {
         broadcast({ data: song || null, event: 'song' });
     }
-});
+    },
+);
 
 ipcMain.on('update-volume', (_event, volume: number) => {
     currentState.volume = volume;

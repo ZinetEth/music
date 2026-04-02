@@ -1,15 +1,15 @@
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import schemas
+from app.api.routers.calendar import _gregorian_to_ethiopian
 from app.core.holidays import DEFAULT_RECOMMENDATIONS, HOLIDAY_RULES
 from app.core.recommendation_catalog import SONG_CATALOG
 from app.db import get_db
 from app.services import crud
 from app.services.recommender_engine import HybridRecommender, SongCandidate
-from app.api.routers.calendar import _gregorian_to_ethiopian
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
@@ -34,7 +34,10 @@ def _build_recommendations(
     if holiday:
         for rule in rules:
             if rule["key"] == holiday:
-                return [schemas.PlaylistRecommendation(**item) for item in rule["recommendations"]]
+                return [
+                    schemas.PlaylistRecommendation(**item)
+                    for item in rule["recommendations"]
+                ]
 
     return [schemas.PlaylistRecommendation(**item) for item in DEFAULT_RECOMMENDATIONS]
 
@@ -97,3 +100,42 @@ def hybrid_feed(
         "model_backend": backend,
         "recommendations": ranked,
     }
+
+
+@router.get("/for-you", response_model=schemas.PersonalizedFeedResponse)
+def for_you(
+    user_id: int,
+    location: str | None = Query(default=None),
+    limit: int = Query(default=12, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    try:
+        return crud.get_personalized_feed(
+            db,
+            user_id=user_id,
+            location=location,
+            limit=limit,
+        )
+    except ValueError as exc:
+        if str(exc) == "user_not_found":
+            raise HTTPException(status_code=404, detail="User not found") from exc
+        raise
+
+
+@router.get("/trending", response_model=schemas.TrendingFeedResponse)
+def trending(
+    location: str | None = Query(default=None),
+    limit: int = Query(default=12, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    return crud.get_trending_feed(db, location=location, limit=limit)
+
+
+@router.get("", response_model=schemas.PersonalizedFeedResponse)
+def recommendations_root(
+    user_id: int,
+    location: str | None = Query(default=None),
+    limit: int = Query(default=12, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    return for_you(user_id=user_id, location=location, limit=limit, db=db)

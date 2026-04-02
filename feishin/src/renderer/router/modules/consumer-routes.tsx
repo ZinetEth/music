@@ -15,6 +15,9 @@ const ConsumerSearchRoute = lazy(
 const ConsumerLibraryRoute = lazy(
     () => import('/@/renderer/features/consumer/screens/library-screen'),
 );
+const MarketplacePage = lazy(() => import('/@/renderer/pages/Marketplace'));
+const PaymentsPage = lazy(() => import('/@/renderer/pages/Payments'));
+const ProfilePage = lazy(() => import('/@/renderer/pages/Profile'));
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -42,9 +45,9 @@ export const consumerRoutes = (
         <Route element={<NowPlayingRoute />} path={AppRoute.NOW_PLAYING} />
         <Route element={<HomeRoute />} path={AppRoute.FAVORITES} />
         <Route element={<HomeRoute />} path={AppRoute.SETTINGS} />
-        <Route element={<HomeRoute />} path={AppRoute.MARKETPLACE} />
-        <Route element={<HomeRoute />} path={AppRoute.PAYMENTS} />
-        <Route element={<HomeRoute />} path={AppRoute.PROFILE} />
+        <Route element={<MarketplacePage />} path={AppRoute.MARKETPLACE} />
+        <Route element={<PaymentsPage />} path={AppRoute.PAYMENTS} />
+        <Route element={<ProfilePage />} path={AppRoute.PROFILE} />
         <Route element={<HomeRoute />} path="*" />
     </Route>
 );

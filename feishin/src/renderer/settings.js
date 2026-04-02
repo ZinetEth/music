@@ -1,6 +1,8 @@
 'use strict';
 
-window.SERVER_URL = 'http://192.168.8.103:4533';
+const isWebRuntime = /^https?:$/i.test(window.location.protocol);
+
+window.SERVER_URL = isWebRuntime ? `${window.location.origin}/navidrome` : 'http://127.0.0.1:4533';
 window.SERVER_NAME = 'Music';
 window.SERVER_TYPE = 'navidrome';
 window.SERVER_USERNAME = 'admin';

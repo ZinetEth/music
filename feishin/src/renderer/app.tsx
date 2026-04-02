@@ -10,7 +10,12 @@ import isElectron from 'is-electron';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import i18n from '/@/i18n/i18n';
-import { registerDevice, telegramLogin } from '/@/renderer/api/client';
+import {
+    registerDevice,
+    setBackendAccessToken,
+    setBackendUserId,
+    telegramLogin,
+} from '/@/renderer/api/client';
 import { openSettingsModal } from '/@/renderer/features/settings/utils/open-settings-modal';
 import { WebAudioContext } from '/@/renderer/features/player/context/webaudio-context';
 import { useCheckForUpdates } from '/@/renderer/hooks/use-check-for-updates';
@@ -87,6 +92,8 @@ export const App = () => {
                 const bitrate = bitrateMap[response.device_class] ?? 192;
 
                 if (mounted) {
+                    setBackendAccessToken(response.access_token);
+                    setBackendUserId(response.user_id);
                     if (playbackSettings.transcode.bitrate === bitrate) {
                         return;
                     }
@@ -121,11 +128,7 @@ export const App = () => {
             localStorage.setItem('telegram-mini-app', 'true');
             localStorage.setItem('telegram-user-id', telegramUserId);
 
-            try {
-                await telegramLogin({ telegram_user_id: telegramUserId });
-            } catch {
-                // Ignore login error here; API layer surfaces user-visible errors.
-            }
+            await telegramLogin({ telegram_user_id: telegramUserId });
         };
 
         setupTelegramMode();

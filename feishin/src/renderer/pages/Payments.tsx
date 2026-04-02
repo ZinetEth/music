@@ -1,31 +1,28 @@
-import { createPayment } from '/@/renderer/api/client';
-import { useCurrentServer } from '/@/renderer/store';
+import { createPayment, getBackendUserId } from '/@/renderer/api/client';
 import { Button } from '/@/shared/components/button/button';
 import { Stack } from '/@/shared/components/stack/stack';
 import { Text } from '/@/shared/components/text/text';
 import { toast } from '/@/shared/components/toast/toast';
 
 const PaymentsPage = () => {
-    const currentServer = useCurrentServer();
-    const userId = currentServer?.userId || '1';
+    const userId = getBackendUserId();
 
     const handlePayment = async (
-        type: 'playlist_purchase' | 'subscription_monthly' | 'wallet_topup',
+        type: 'playlist_purchase' | 'song_purchase' | 'subscription_monthly' | 'wallet_topup',
     ) => {
         try {
-            const amount = type === 'subscription_monthly' ? 199 : 50;
+            const amount = type === 'subscription_monthly' ? 199 : type === 'song_purchase' ? 25 : 50;
             const result = await createPayment({
                 amount,
+                method: 'telebirr',
                 type,
                 user_id: userId,
             });
 
-            if (!result.payment_url) {
-                toast.error({ message: 'payment failed', title: 'Payments' });
-                return;
-            }
-
-            window.location.href = result.payment_url;
+            toast.success({
+                message: `Payment ${result.id} created with status ${result.status}.`,
+                title: 'Payments',
+            });
         } catch (error: any) {
             toast.error({ message: error?.message || 'payment failed', title: 'Payments' });
         }
@@ -51,7 +48,7 @@ const PaymentsPage = () => {
             <Stack className="telegram-panel" gap="sm" p="md">
                 <Text fw={600}>Wallet</Text>
                 <Text size="sm" variant="secondary">
-                    Add balance to buy playlists and premium content.
+                    Add balance to buy songs, playlists, and premium content.
                 </Text>
                 <Button onClick={() => handlePayment('wallet_topup')}>Top-up wallet</Button>
             </Stack>
@@ -63,6 +60,13 @@ const PaymentsPage = () => {
                 <Button onClick={() => handlePayment('playlist_purchase')}>
                     Purchase playlist
                 </Button>
+            </Stack>
+            <Stack className="telegram-panel" gap="sm" p="md">
+                <Text fw={600}>Song Purchase</Text>
+                <Text size="sm" variant="secondary">
+                    Buy individual songs from the marketplace when you do not want the full playlist.
+                </Text>
+                <Button onClick={() => handlePayment('song_purchase')}>Purchase song</Button>
             </Stack>
         </Stack>
     );

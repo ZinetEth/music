@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -63,7 +63,7 @@ def _ethiopian_to_gregorian(year: int, month: int, day: int) -> tuple[int, int, 
 
 @router.get("/ethiopian-now", response_model=schemas.EthiopianDateOut)
 def ethiopian_now():
-    now = datetime.now(timezone.utc).date()
+    now = datetime.now(UTC).date()
     year, month, day = _gregorian_to_ethiopian(now.year, now.month, now.day)
     return {"year": year, "month": month, "day": day}
 

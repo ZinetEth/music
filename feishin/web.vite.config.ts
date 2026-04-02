@@ -47,6 +47,15 @@ export default defineConfig({
         },
         sourcemap: true,
     },
+    server: {
+        proxy: {
+            '/navidrome': {
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/navidrome/, ''),
+                target: 'http://127.0.0.1:4533',
+            },
+        },
+    },
     css: {
         modules: {
             generateScopedName: 'fs-[name]-[local]',

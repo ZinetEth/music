@@ -49,10 +49,17 @@ Backend quality tooling lives in:
 
 ## Run locally
 
+Copy the production/local env template first if you want explicit configuration:
+
+```powershell
+cd <path-to-music-platform>
+Copy-Item .env.example .env
+```
+
 Start backend services:
 
 ```powershell
-cd c:\Users\u\Music\music-platform
+cd <path-to-music-platform>
 docker compose up -d
 ```
 
@@ -81,7 +88,29 @@ Backend:
 cd c:\Users\u\Music\music-platform\backend
 python -m py_compile main.py seed.py
 python -m pytest
-ruff check .
-black --check .
+python -m ruff check .
+python -m black --check .
 mypy .
 ```
+
+## Production notes
+
+The backend is now configured for PostgreSQL-backed production deployment with:
+
+- environment-based secrets and database settings via `.env`
+- trusted host validation
+- CORS allowlist configuration
+- optional HTTPS redirect
+- request size limiting for uploads
+- security response headers
+- health and readiness endpoints
+- safer Docker defaults with a non-root runtime user
+
+Before production deploys:
+
+- set a strong `SECRET_KEY`
+- set a non-default `ADMIN_API_KEY`
+- point `DATABASE_URL` to PostgreSQL
+- set explicit `ALLOWED_HOSTS`
+- set explicit `ALLOWED_ORIGINS`
+- disable docs with `DOCS_ENABLED=false`

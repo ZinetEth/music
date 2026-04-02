@@ -2,20 +2,11 @@ import { openModal } from '@mantine/modals';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from '/@/renderer/api';
-import { checkSubscription } from '/@/renderer/api/client';
-import { useCurrentServer } from '/@/renderer/store';
+import { canPlaySong, getBackendUserId } from '/@/renderer/api/client';
 import { TranscodingConfig } from '/@/renderer/store';
 import { Text } from '/@/shared/components/text/text';
 import { toast } from '/@/shared/components/toast/toast';
 import { QueueSong } from '/@/shared/types/domain-types';
-
-const isPremiumTrack = (song: QueueSong) => {
-    const premiumTags = song.tags?.premium || song.tags?.Premium;
-    if (premiumTags && premiumTags.length > 0) {
-        return premiumTags.some((value) => String(value).toLowerCase() === 'true');
-    }
-    return song.name.toLowerCase().includes('[premium]');
-};
 
 export function useSongUrl(
     song: QueueSong | undefined,
@@ -23,34 +14,33 @@ export function useSongUrl(
     transcode: TranscodingConfig,
 ): string | undefined {
     const prior = useRef(['', '']);
-    const currentServer = useCurrentServer();
     const [allowedToPlay, setAllowedToPlay] = useState(true);
 
     useEffect(() => {
         let mounted = true;
 
-        const validateSubscription = async () => {
-            if (!song || !isPremiumTrack(song)) {
+        const validatePlaybackAccess = async () => {
+            if (!song) {
                 if (mounted) setAllowedToPlay(true);
                 return;
             }
 
             try {
-                const userId = currentServer?.userId || '1';
-                const result = await checkSubscription(userId);
-                const subscribed = Boolean(result?.subscribed);
+                const userId = getBackendUserId();
+                const result = await canPlaySong(userId, song.id);
+                const allowed = Boolean(result?.allowed);
 
-                if (!subscribed) {
+                if (!allowed) {
                     openModal({
-                        children: <Text>Subscribe to play this song</Text>,
-                        title: 'Subscription Required',
+                        children: <Text>Buy this song or subscribe to unlock playback.</Text>,
+                        title: 'Playback Locked',
                     });
                     toast.warn({
-                        message: 'subscription expired',
+                        message: 'purchase or subscription required',
                         title: 'Playback',
                     });
                 }
-                if (mounted) setAllowedToPlay(subscribed);
+                if (mounted) setAllowedToPlay(allowed);
             } catch (error: unknown) {
                 toast.error({
                     message: error instanceof Error ? error.message : 'network error',
@@ -60,11 +50,11 @@ export function useSongUrl(
             }
         };
 
-        validateSubscription();
+        validatePlaybackAccess();
         return () => {
             mounted = false;
         };
-    }, [currentServer?.userId, song, song?._uniqueId, song?.name]);
+    }, [song, song?._uniqueId, song?.name]);
 
     return useMemo(() => {
         if (!allowedToPlay) {

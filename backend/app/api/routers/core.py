@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app import schemas
+from app.core.auth import create_access_token, get_current_user_id
 from app.db import get_db
 from app.services import crud
 
@@ -14,9 +15,46 @@ def register_device(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    telegram_detected = crud.is_telegram_request(payload.telegram, dict(request.headers))
+    telegram_detected = crud.is_telegram_request(
+        payload.telegram, dict(request.headers)
+    )
     user = crud.create_user(db, payload, telegram_detected)
-    return {"user_id": user.id, "device_class": user.device_class}
+    return {
+        "access_token": create_access_token(user.id),
+        "device_class": user.device_class,
+        "token_type": "bearer",
+        "user_id": user.id,
+    }
+
+
+@router.get("/users/{user_id}/profile", response_model=schemas.UserProfileResponse)
+def user_profile(user_id: int, db: Session = Depends(get_db)):
+    try:
+        return crud.get_user_profile(db, user_id)
+    except ValueError as exc:
+        if str(exc) == "user_not_found":
+            raise HTTPException(status_code=404, detail="User not found") from exc
+        raise
+
+
+@router.get("/subscription/check", response_model=schemas.SubscriptionCheckResponse)
+def subscription_check(user_id: int, db: Session = Depends(get_db)):
+    return crud.get_subscription_status(db, user_id)
+
+
+@router.post("/engagement/playback", response_model=schemas.PlaybackEventResponse)
+def log_playback(
+    payload: schemas.PlaybackEventIn,
+    current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    try:
+        safe_payload = payload.model_copy(update={"user_id": current_user_id})
+        return crud.record_playback_event(db, safe_payload)
+    except ValueError as exc:
+        if str(exc) == "user_not_found":
+            raise HTTPException(status_code=404, detail="User not found") from exc
+        raise
 
 
 @router.get("/can-play/{song_id}/{user_id}", response_model=schemas.CanPlayResponse)

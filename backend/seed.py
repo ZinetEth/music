@@ -1,5 +1,4 @@
-from app.seeding import main, seed_database
-
+from app.seeding import main
 
 if __name__ == "__main__":
     main()

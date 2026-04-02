@@ -6,7 +6,12 @@ import { usePlayerEvents } from '/@/renderer/features/player/audio-player/hooks/
 import { useSetRating } from '/@/renderer/features/shared/hooks/use-set-rating';
 import { useCreateFavorite } from '/@/renderer/features/shared/mutations/create-favorite-mutation';
 import { useDeleteFavorite } from '/@/renderer/features/shared/mutations/delete-favorite-mutation';
-import { usePlayerActions, usePlayerStore, useRemoteSettings } from '/@/renderer/store';
+import {
+    getServerById,
+    usePlayerActions,
+    usePlayerStore,
+    useRemoteSettings,
+} from '/@/renderer/store';
 import { LogCategory, logFn } from '/@/renderer/utils/logger';
 import { logMsg } from '/@/renderer/utils/logger-message';
 import { toast } from '/@/shared/components/toast/toast';
@@ -15,6 +20,23 @@ import { PlayerShuffle } from '/@/shared/types/types';
 
 const remote = isElectron() ? window.api.remote : null;
 const ipc = isElectron() ? window.api.ipc : null;
+
+const getAllowedImageOrigin = (serverId?: string) => {
+    if (!serverId) {
+        return null;
+    }
+
+    const server = getServerById(serverId);
+    if (!server) {
+        return null;
+    }
+
+    try {
+        return new URL(server.url).origin;
+    } catch {
+        return null;
+    }
+};
 
 export const useRemote = () => {
     const { mediaSkipForward, setVolume } = usePlayerActions();
@@ -167,7 +189,7 @@ export const useRemote = () => {
                     useRemoteUrl: true,
                 }) || null;
 
-            remote.updateSong(currentSong, imageUrl);
+            remote.updateSong(currentSong, imageUrl, getAllowedImageOrigin(currentSong._serverId));
         }
     }, [isRemoteEnabled, player]);
 
@@ -199,7 +221,7 @@ export const useRemote = () => {
                             useRemoteUrl: true,
                         }) || null;
 
-                    remote.updateSong(song, imageUrl);
+                    remote.updateSong(song, imageUrl, getAllowedImageOrigin(song._serverId));
                 } else {
                     remote.updateSong(undefined);
                 }

@@ -1,13 +1,26 @@
 [tool.black]
 line-length = 88
 target-version = ["py312"]
+extend-exclude = '''
+(
+  pytest-cache-files-.*
+| __pycache__
+| \.ruff_cache
+)
+'''
 
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+extend-exclude = [
+    "pytest-cache-files-*",
+    "__pycache__",
+    ".ruff_cache",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -16,7 +29,7 @@ check_untyped_defs = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_return_any = false
-exclude = ["audio/", "__pycache__/"]
+exclude = ["audio/", "__pycache__/", "pytest-cache-files-.*", ".ruff_cache/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

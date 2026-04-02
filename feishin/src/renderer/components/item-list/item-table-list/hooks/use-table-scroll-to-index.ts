@@ -98,6 +98,20 @@ export const useTableScrollToIndex = ({
         [DEFAULT_ROW_HEIGHT, mockCellPropsBase, rowHeight],
     );
 
+    const rowOffsets = useMemo(() => {
+        const totalRows = enableHeader ? data.length + 1 : data.length;
+
+        if (typeof rowHeight === 'number') {
+            return Array.from({ length: totalRows + 1 }, (_, index) => index * rowHeight);
+        }
+
+        const offsets = new Array<number>(totalRows + 1).fill(0);
+        for (let index = 0; index < totalRows; index += 1) {
+            offsets[index + 1] = offsets[index] + getRowHeightAtIndex(index);
+        }
+        return offsets;
+    }, [data.length, enableHeader, getRowHeightAtIndex, rowHeight]);
+
     const scrollToTableOffset = useCallback(
         (offset: number) => {
             const mainContainer = rowRef.current?.childNodes[0] as HTMLDivElement | undefined;
@@ -126,14 +140,9 @@ export const useTableScrollToIndex = ({
     const calculateScrollTopForIndex = useCallback(
         (index: number) => {
             const adjustedIndex = enableHeader ? Math.max(0, index - 1) : index;
-            let scrollTop = 0;
-
-            for (let i = 0; i < adjustedIndex; i++) {
-                scrollTop += getRowHeightAtIndex(i);
-            }
-            return scrollTop;
+            return rowOffsets[adjustedIndex] ?? 0;
         },
-        [enableHeader, getRowHeightAtIndex],
+        [enableHeader, rowOffsets],
     );
 
     const scrollToTableIndex = useCallback(

@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 DeviceClass = Literal["lite", "standard", "high"]
 SubscriptionStatus = Literal["active", "expired"]
@@ -31,6 +30,8 @@ class UserOut(BaseModel):
 class RegisterDeviceResponse(BaseModel):
     user_id: int
     device_class: DeviceClass
+    access_token: str
+    token_type: str = "bearer"
 
 
 class CanPlayResponse(BaseModel):
@@ -42,12 +43,26 @@ class StreamPolicyResponse(BaseModel):
     maxBitrate: int
 
 
+class SubscriptionCheckResponse(BaseModel):
+    subscribed: bool
+    status: SubscriptionStatus
+    expires_at: datetime | None = None
+
+
 class PremiumSongOut(BaseModel):
     navidrome_song_id: str
 
 
 class SellPlaylistRequest(BaseModel):
     playlist_id: str
+    seller_id: int
+    price: float = Field(..., gt=0)
+    currency: str = "ETB"
+    is_public: bool = True
+
+
+class SellSongRequest(BaseModel):
+    song_id: str
     seller_id: int
     price: float = Field(..., gt=0)
     currency: str = "ETB"
@@ -66,6 +81,38 @@ class MarketplaceOut(BaseModel):
     is_public: bool
 
 
+class MarketplacePlaylistOut(BaseModel):
+    playlist_id: str
+    title: str
+    creator_name: str
+    artist_name: str | None
+    artist_verified: bool
+    price: float
+    currency: str
+    sales_count: int
+    save_count: int
+    share_count: int
+    save_rate: float
+    social_score: float
+    region: str | None
+    preview_song_id: str | None
+    cover_art_path: str | None
+
+
+class MarketplaceSongOut(BaseModel):
+    song_id: str
+    title: str
+    artist: str
+    genre: str
+    price: float
+    currency: str
+    sales_count: int
+    play_count_7d: int
+    like_count_7d: int
+    cover_art_path: str | None
+    is_premium: bool
+
+
 class BuyPlaylistRequest(BaseModel):
     playlist_id: str
     buyer_id: int
@@ -78,10 +125,56 @@ class BuyPlaylistResponse(BaseModel):
     purchased: bool
 
 
+class BuySongRequest(BaseModel):
+    song_id: str
+    buyer_id: int
+
+
+class BuySongResponse(BaseModel):
+    song_id: str
+    buyer_id: int
+    sales_count: int
+    purchased: bool
+
+
+class SavePlaylistRequest(BaseModel):
+    playlist_id: str
+    user_id: int
+
+
+class SavePlaylistResponse(BaseModel):
+    playlist_id: str
+    save_count: int
+    saved: bool
+
+
+class SecurePlaylistAccessResponse(BaseModel):
+    playlist_id: str
+    authorized: bool
+    x_accel_redirect: str | None = None
+    art_redirect: str | None = None
+    stream_path: str | None = None
+    art_path: str | None = None
+
+
+class SecureSongAccessResponse(BaseModel):
+    song_id: str
+    authorized: bool
+    stream_path: str | None = None
+    art_path: str | None = None
+
+
 class PaymentCreateRequest(BaseModel):
     user_id: int
     amount: float = Field(..., gt=0)
     method: PaymentMethod
+    payment_type: Literal[
+        "playlist_purchase",
+        "song_purchase",
+        "subscription_monthly",
+        "wallet_topup",
+    ] = "subscription_monthly"
+    playlist_id: str | None = None
 
 
 class PaymentConfirmRequest(BaseModel):
@@ -96,6 +189,8 @@ class PaymentOut(BaseModel):
     amount: float
     method: PaymentMethod
     status: PaymentStatus
+    payment_type: str | None = None
+    playlist_id: str | None = None
     created_at: datetime
 
 
@@ -142,6 +237,8 @@ class SongRecommendationOut(BaseModel):
     title: str
     artist: str
     genre: str
+    qenet_mode: str | None = None
+    country: str | None = None
     score: float
     score_breakdown: dict[str, float]
 
@@ -152,6 +249,93 @@ class HybridRecommendationResponse(BaseModel):
     location: str | None
     model_backend: str
     recommendations: list[SongRecommendationOut]
+
+
+class TasteVectorOut(BaseModel):
+    qenet_mode_affinity: dict[str, float]
+    genre_affinity: dict[str, float]
+    average_tempo: float
+    acoustic_signature: dict[str, float]
+
+
+class LookalikeUserOut(BaseModel):
+    user_id: int
+    similarity: float
+
+
+class PersonalizedFeedResponse(BaseModel):
+    user_id: int
+    location: str | None
+    model_backend: str
+    taste_vector: TasteVectorOut
+    lookalike_audience: list[LookalikeUserOut]
+    recommendations: list[SongRecommendationOut]
+
+
+class TrendingSongOut(BaseModel):
+    song_id: str
+    title: str
+    artist: str
+    genre: str
+    qenet_mode: str | None = None
+    country: str | None = None
+    hot_score: float
+    momentum_score: float
+    regional_boost: float
+    social_proof: float
+
+
+class TrendingFeedResponse(BaseModel):
+    location: str | None
+    generated_at: str
+    recommendations: list[TrendingSongOut]
+
+
+class PlaybackEventIn(BaseModel):
+    user_id: int | None = None
+    song_id: str
+    title: str
+    artist: str
+    genre: str = "Unknown"
+    country: str | None = None
+    language: str | None = None
+    qenet_mode: str | None = None
+    release_date: str | None = None
+    tempo: float = 0
+    duration: float = 0
+    played_seconds: float = Field(default=0, ge=0)
+    completed_ratio: float = Field(default=0, ge=0, le=2)
+    skipped: bool = False
+    is_looped: bool = False
+    location: str | None = None
+    playlist_id: str | None = None
+    extracted_features: dict[str, Any] = Field(default_factory=dict)
+
+
+class PlaybackEventResponse(BaseModel):
+    recorded: bool
+    user_id: int
+    song_id: str
+    updated_taste_vector: TasteVectorOut
+
+
+class UserProfileResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    telegram_id: str | None
+    email: str | None
+    device_class: DeviceClass
+    is_telegram_user: bool
+    created_at: datetime
+    preferred_location: str | None = None
+    active_subscription: bool
+    subscription_status: SubscriptionStatus
+    expires_at: datetime | None = None
+    taste_vector: TasteVectorOut
+    lookalike_audience: list[LookalikeUserOut]
+    recent_playback_count: int
+    secure_playlist_ids: list[str]
 
 
 class AudioAnalysisResponse(BaseModel):

@@ -1,5 +1,6 @@
 import isElectron from 'is-electron';
 
+import { getServerById, } from '/@/renderer/store';
 import { QueueSong } from '/@/shared/types/domain-types';
 
 const remote = isElectron() ? window.api.remote : null;
@@ -31,5 +32,20 @@ export const updateSong = (song: QueueSong | undefined, imageUrl?: null | string
         mediaSession.metadata = metadata;
     }
 
-    remote?.updateSong(song, imageUrl);
+    const allowedImageOrigin = song?._serverId
+        ? (() => {
+              const server = getServerById(song._serverId);
+              if (!server) {
+                  return null;
+              }
+
+              try {
+                  return new URL(server.url).origin;
+              } catch {
+                  return null;
+              }
+          })()
+        : null;
+
+    remote?.updateSong(song, imageUrl, allowedImageOrigin);
 };

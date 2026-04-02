@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { getRecommendations, type RecommendationPayload } from '/@/renderer/api/client';
-import { useCurrentServer } from '/@/renderer/store';
+import { getBackendUserId, getRecommendations, type RecommendationPayload } from '/@/renderer/api/client';
 import { Stack } from '/@/shared/components/stack/stack';
 import { Text } from '/@/shared/components/text/text';
 import { toast } from '/@/shared/components/toast/toast';
@@ -51,12 +50,11 @@ const RecommendationBlock = ({ items, title }: { items?: RecommendationItem[]; t
 };
 
 export const BackendRecommendations = () => {
-    const currentServer = useCurrentServer();
-    const userId = currentServer?.userId || '1';
     const [feed, setFeed] = useState<null | RecommendationPayload>(null);
 
     useEffect(() => {
         let mounted = true;
+        const userId = getBackendUserId();
 
         const load = async () => {
             try {
@@ -77,15 +75,16 @@ export const BackendRecommendations = () => {
         return () => {
             mounted = false;
         };
-    }, [userId]);
+    }, []);
 
     return (
         <Stack gap="md">
-            <RecommendationBlock items={feed?.recommended_songs} title="Recommended Songs" />
-            <RecommendationBlock items={feed?.trending_in_ethiopia} title="Trending in Ethiopia" />
+            <RecommendationBlock items={feed?.recommendations} title="Recommended Songs" />
             <RecommendationBlock
-                items={feed?.based_on_history}
-                title="Based on Listening History"
+                items={feed?.lookalike_audience?.map((item) => ({
+                    title: `Lookalike listener #${item.user_id} (${Math.round(item.similarity * 100)}% match)`,
+                }))}
+                title="Lookalike Audience"
             />
         </Stack>
     );

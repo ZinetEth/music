@@ -9,11 +9,11 @@ from app.api.routers import (
 )
 
 __all__ = [
-    'admin_holidays_router',
-    'audio_analysis_router',
-    'calendar_router',
-    'core_router',
-    'marketplace_router',
-    'payments_router',
-    'recommendations_router',
+    "admin_holidays_router",
+    "audio_analysis_router",
+    "calendar_router",
+    "core_router",
+    "marketplace_router",
+    "payments_router",
+    "recommendations_router",
 ]
