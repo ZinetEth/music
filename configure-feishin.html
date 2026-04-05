@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configure Feishin for Music Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        .code {
+            background: #f1f3f4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Configure Feishin for Music Platform</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> Make sure your music platform backend is running on <code>http://localhost:8000</code> before proceeding!
+        </div>
+
+        <div class="step">
+            <h3>Step 1: Open Feishin</h3>
+            <p>Launch the Feishin application on your computer.</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Go to Settings</h3>
+            <p>Click on the settings icon and select "Servers" from the menu.</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Add New Server</h3>
+            <p>Click the "Add Server" button and enter these details:</p>
+            
+            <div class="code">
+{
+  "id": "music-platform-backend",
+  "name": "Music Platform Backend",
+  "type": "music-platform",
+  "url": "http://localhost:8000",
+  "credential": "default-credential"
+}
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Quick Setup (Optional)</h3>
+            <p>Click the button below to automatically configure Feishin:</p>
+            <button class="button" onclick="configureFeishin()">Configure Feishin Automatically</button>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Start Backend</h3>
+            <p>If you haven't started the backend yet, run this command:</p>
+            <div class="code">
+cd backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function configureFeishin() {
+            const musicPlatformServer = {
+                id: 'music-platform-backend',
+                name: 'Music Platform Backend',
+                type: 'music-platform',
+                url: 'http://localhost:8000',
+                credential: 'default-credential',
+                features: {
+                    music_platform: {
+                        library: true,
+                        playlists: true,
+                        albums: true,
+                        artists: true,
+                        genres: true,
+                        tracks: true,
+                        folders: false,
+                        share: false,
+                        upload: false,
+                        rescan: false,
+                        rating: false,
+                        comment: false,
+                        lyrics: false,
+                    }
+                },
+                isDefault: true,
+                isAdmin: true,
+                version: '1.0.0',
+                ndCredential: 'default-credential'
+            };
+
+            // Get existing auth store
+            let authStore = localStorage.getItem('auth-store');
+            let authData = authStore ? JSON.parse(authStore) : { serverList: {}, currentServer: null };
+
+            // Add our music platform server
+            authData.serverList['music-platform-backend'] = musicPlatformServer;
+            
+            // Set as current server
+            authData.currentServer = musicPlatformServer;
+
+            // Save back to localStorage
+            localStorage.setItem('auth-store', JSON.stringify(authData));
+
+            alert('✅ Feishin configured successfully!\n\nRefresh the page to see your Music Platform backend.');
+            
+            // Optional: refresh the page
+            window.location.reload();
+        }
+
+        // Check if backend is accessible
+        async function checkBackend() {
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                if (response.ok) {
+                    document.querySelector('.warning').style.display = 'none';
+                } else {
+                    document.querySelector('.warning').innerHTML = '<strong>⚠️ Backend Not Running:</strong> Please start the backend first!';
+                }
+            } catch (error) {
+                document.querySelector('.warning').innerHTML = '<strong>⚠️ Backend Not Running:</strong> Please start the backend first!';
+            }
+        }
+
+        // Check backend status on load
+        checkBackend();
+    </script>
+</body>
+</html>

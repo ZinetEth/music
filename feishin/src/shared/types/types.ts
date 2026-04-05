@@ -57,6 +57,7 @@ export enum ServerType {
     JELLYFIN = 'jellyfin',
     NAVIDROME = 'navidrome',
     SUBSONIC = 'subsonic',
+    MUSIC_PLATFORM = 'music-platform',
 }
 
 export type CardRoute = {
