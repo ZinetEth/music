@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import {
     createPayment,
     confirmPayment,
@@ -8,10 +9,16 @@ import {
     type LegacyPayment,
     getBackendUserId,
 } from '/@/renderer/api/aligned-client';
-import { Button } from '/@/shared/components/button/button';
 import { Stack } from '/@/shared/components/stack/stack';
 import { Text } from '/@/shared/components/text/text';
 import { toast } from '/@/shared/components/toast/toast';
+import { AppRoute } from '/@/renderer/router/routes';
+import { 
+    ResponsiveLayout, 
+    ResponsiveGrid, 
+    ResponsiveCard, 
+    ResponsiveButton 
+} from '/@/renderer/components/ResponsiveLayout';
 
 const AlignedPaymentsPage = () => {
     const userId = getBackendUserId();
@@ -100,141 +107,177 @@ const AlignedPaymentsPage = () => {
     };
 
     return (
-        <Stack gap="lg" p="lg">
-            <Text fw={700} size="xl">
-                Payments
-            </Text>
-
-            {/* Current Subscription Status */}
-            {subscriptionStatus && (
-                <Stack className="telegram-panel" gap="md" p="md">
-                    <Text fw={600}>Subscription Status</Text>
-                    {subscriptionStatus.subscribed ? (
-                        <Stack gap="sm">
-                            <Text size="sm" className="text-green-500">
-                                ✅ Active Subscription
-                            </Text>
-                            <Text size="sm" variant="secondary">
-                                You have access to premium features
-                            </Text>
-                        </Stack>
-                    ) : (
-                        <Stack gap="sm">
-                            <Text size="sm" variant="secondary">
-                                No active subscription
-                            </Text>
-                            <Text size="sm" variant="secondary">
-                                Subscribe to unlock premium features
-                            </Text>
-                        </Stack>
-                    )}
-                </Stack>
-            )}
-
-            {/* Payment Provider Selection */}
-            <Stack className="telegram-panel" gap="md" p="md">
-                <Text fw={600}>Payment Method</Text>
-                <Stack gap="sm">
-                    {paymentProviders.map((provider) => (
-                        <Button
-                            key={provider.id}
-                            className={`telegram-secondary-btn ${selectedProvider === provider.id ? 'selected' : ''}`}
-                            onClick={() => setSelectedProvider(provider.id)}
-                            variant={selectedProvider === provider.id ? 'primary' : 'secondary'}
-                        >
-                            <Stack direction="row" gap="sm" align="center">
-                                <Text>{provider.name}</Text>
-                                <Text size="xs" variant="secondary">
-                                    ({provider.description})
+        <ResponsiveLayout title="💳 Payments" showBackButton onBackClick={() => navigate(AppRoute.HOME)}>
+            <Stack spacing="xl">
+                {/* Current Subscription Status */}
+                {subscriptionStatus && (
+                    <ResponsiveCard title="Subscription Status">
+                        {subscriptionStatus.subscribed ? (
+                            <Stack spacing="md">
+                                <div style={{ color: '#52c41a', fontWeight: 'bold' }}>
+                                    ✅ Active Subscription
+                                </div>
+                                <Text size="sm" style={{ color: '#6b7280' }}>
+                                    You have access to premium features
                                 </Text>
                             </Stack>
-                        </Button>
-                    ))}
-                </Stack>
-            </Stack>
+                        ) : (
+                            <Stack spacing="md">
+                                <div style={{ color: '#ff4d4f', fontWeight: 'bold' }}>
+                                    ❌ No Active Subscription
+                                </div>
+                                <Text size="sm" style={{ color: '#6b7280' }}>
+                                    Subscribe to unlock premium features
+                                </Text>
+                            </Stack>
+                        )}
+                    </ResponsiveCard>
+                )}
 
-            {/* Subscription Options */}
-            <Stack className="telegram-panel" gap="sm" p="md">
-                <Text fw={600}>Subscription</Text>
-                <Text size="sm" variant="secondary">
-                    Unlimited premium tracks for one month.
-                </Text>
-                <Button
-                    className="telegram-primary-btn"
-                    onClick={() => handlePayment('subscription_monthly')}
-                    disabled={loading || subscriptionStatus?.subscribed}
-                >
-                    {loading ? 'Processing...' : 'Subscribe monthly - 199 ETB'}
-                </Button>
-            </Stack>
+                {/* Payment Provider Selection */}
+                <ResponsiveCard title="Select Payment Method">
+                    <Stack spacing="md">
+                        <Text size="sm" style={{ color: '#6b7280' }}>
+                            Choose your preferred payment provider
+                        </Text>
+                        <ResponsiveGrid columns={{ mobile: 1, tablet: 2, desktop: 2 }}>
+                            {paymentProviders.map((provider) => (
+                                <ResponsiveButton
+                                    key={provider.id}
+                                    onClick={() => setSelectedProvider(provider.id)}
+                                    variant={selectedProvider === provider.id ? 'primary' : 'secondary'}
+                                    fullWidth
+                                >
+                                    <Stack spacing="xs" align="center">
+                                        <Text weight="bold">{provider.name}</Text>
+                                        <Text size="xs" style={{ opacity: 0.8 }}>
+                                            {provider.description}
+                                        </Text>
+                                        {provider.status === 'recommended' && (
+                                            <div style={{ 
+                                                backgroundColor: '#1DB954', 
+                                                color: 'white', 
+                                                padding: '2px 8px', 
+                                                borderRadius: '12px', 
+                                                fontSize: '10px',
+                                                fontWeight: 'bold'
+                                            }}>
+                                                RECOMMENDED
+                                            </div>
+                                        )}
+                                    </Stack>
+                                </ResponsiveButton>
+                            ))}
+                        </ResponsiveGrid>
+                    </Stack>
+                </ResponsiveCard>
 
-            {/* Wallet Top-up */}
-            <Stack className="telegram-panel" gap="sm" p="md">
-                <Text fw={600}>Wallet</Text>
-                <Text size="sm" variant="secondary">
-                    Add funds to your wallet for purchases.
-                </Text>
-                <Button
-                    className="telegram-secondary-btn"
-                    onClick={() => handlePayment('wallet_topup')}
-                    disabled={loading}
-                >
-                    {loading ? 'Processing...' : 'Top-up wallet - 50 ETB'}
-                </Button>
-            </Stack>
+                {/* Payment Options */}
+                <ResponsiveGrid columns={{ mobile: 1, tablet: 2, desktop: 3 }}>
+                    <ResponsiveCard title="Premium Subscription" subtitle="Unlimited access">
+                        <Stack spacing="md">
+                            <div style={{ fontSize: '32px', textAlign: 'center' }}>🎵</div>
+                            <Text size="sm" style={{ textAlign: 'center', color: '#6b7280' }}>
+                                Unlimited premium tracks for one month
+                            </Text>
+                            <ResponsiveButton 
+                                onClick={() => handlePayment('subscription_monthly')}
+                                disabled={loading || subscriptionStatus?.subscribed}
+                                fullWidth
+                                variant="primary"
+                            >
+                                {loading ? 'Processing...' : `Subscribe - ${formatPrice(199)}`}
+                            </ResponsiveButton>
+                        </Stack>
+                    </ResponsiveCard>
 
-            {/* Song Purchase */}
-            <Stack className="telegram-panel" gap="sm" p="md">
-                <Text fw={600}>Purchase Song</Text>
-                <Text size="sm" variant="secondary">
-                    Buy individual songs for permanent access.
-                </Text>
-                <Button
-                    className="telegram-secondary-btn"
-                    onClick={() => handlePayment('song_purchase')}
-                    disabled={loading}
-                >
-                    {loading ? 'Processing...' : 'Buy song - 25 ETB'}
-                </Button>
-            </Stack>
+                    <ResponsiveCard title="Wallet Top-up" subtitle="Add funds">
+                        <Stack spacing="md">
+                            <div style={{ fontSize: '32px', textAlign: 'center' }}>💰</div>
+                            <Text size="sm" style={{ textAlign: 'center', color: '#6b7280' }}>
+                                Add funds to your wallet for purchases
+                            </Text>
+                            <ResponsiveButton 
+                                onClick={() => handlePayment('wallet_topup')}
+                                disabled={loading}
+                                fullWidth
+                                variant="secondary"
+                            >
+                                {loading ? 'Processing...' : `Top-up - ${formatPrice(50)}`}
+                            </ResponsiveButton>
+                        </Stack>
+                    </ResponsiveCard>
 
-            {/* Payment Processing Status */}
-            {currentPayment && (
-                <Stack className="telegram-panel" gap="md" p="md">
-                    <Text fw={600}>Payment Processing</Text>
-                    <Text size="sm" variant="secondary">
-                        Payment ID: {currentPayment.id}
-                    </Text>
-                    <Text size="sm" variant="secondary">
-                        Amount: {formatPrice(currentPayment.amount)}
-                    </Text>
-                    <Text size="sm" variant="secondary">
-                        Method: {currentPayment.method}
-                    </Text>
-                    <Text size="sm" variant="secondary">
-                        Status: {currentPayment.status}
-                    </Text>
-                    <Text size="sm" className="text-blue-500">
-                        Processing payment with {selectedProvider}...
-                    </Text>
-                    <Text size="xs" variant="secondary">
-                        This is a demo - payment will be confirmed automatically
-                    </Text>
-                </Stack>
-            )}
+                    <ResponsiveCard title="Purchase Song" subtitle="Individual tracks">
+                        <Stack spacing="md">
+                            <div style={{ fontSize: '32px', textAlign: 'center' }}>🎧</div>
+                            <Text size="sm" style={{ textAlign: 'center', color: '#6b7280' }}>
+                                Buy individual songs for permanent access
+                            </Text>
+                            <ResponsiveButton 
+                                onClick={() => handlePayment('song_purchase')}
+                                disabled={loading}
+                                fullWidth
+                                variant="outline"
+                            >
+                                {loading ? 'Processing...' : `Buy Song - ${formatPrice(25)}`}
+                            </ResponsiveButton>
+                        </Stack>
+                    </ResponsiveCard>
+                {/* Current Payment Status */}
+                {currentPayment && (
+                    <ResponsiveCard title="Payment Processing">
+                        <Stack spacing="md">
+                            <Text size="sm" style={{ color: '#6b7280' }}>
+                                Payment ID: {currentPayment.payment_id}
+                            </Text>
+                            <Text size="sm" style={{ color: '#6b7280' }}>
+                                Status: {currentPayment.status}
+                            </Text>
+                            <Text size="sm" style={{ color: '#6b7280' }}>
+                                Provider: {selectedProvider}
+                            </Text>
+                            <Text size="sm" style={{ color: '#1DB954', fontStyle: 'italic' }}>
+                                This is a demo - payment will be confirmed automatically
+                            </Text>
+                            {currentPayment.redirect_url && (
+                                <ResponsiveButton 
+                                    onClick={() => window.open(currentPayment.redirect_url, '_blank')}
+                                    variant="primary"
+                                    fullWidth
+                                >
+                                    Complete Payment
+                                </ResponsiveButton>
+                            )}
+                        </Stack>
+                    </ResponsiveCard>
+                )}
 
-            {/* Features */}
-            <Stack className="telegram-panel" gap="md" p="md">
-                <Text fw={600}>Premium Features</Text>
-                <Stack gap="sm">
-                    <Text size="sm">✓ Unlimited premium tracks</Text>
-                    <Text size="sm">✓ High-quality audio</Text>
-                    <Text size="sm">✓ Offline downloads</Text>
-                    <Text size="sm">✓ No advertisements</Text>
-                    <Text size="sm">✓ Advanced search</Text>
-                </Stack>
+                {/* Features */}
+                <ResponsiveCard title="Premium Features">
+                    <ResponsiveGrid columns={{ mobile: 1, tablet: 2, desktop: 3 }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', marginBottom: '8px' }}> Unlimited premium tracks</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', marginBottom: '8px' }}> High-quality audio</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', marginBottom: '8px' }}> Offline downloads</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', marginBottom: '8px' }}> No advertisements</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', marginBottom: '8px' }}> Advanced search</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', marginBottom: '8px' }}> Exclusive content</div>
+                        </div>
+                    </ResponsiveGrid>
+                </ResponsiveCard>
             </Stack>
-        </Stack>
+        </ResponsiveLayout>
     );
 };
 

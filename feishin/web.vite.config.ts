@@ -54,6 +54,30 @@ export default defineConfig({
                 rewrite: (path) => path.replace(/^\/navidrome/, ''),
                 target: 'http://127.0.0.1:4533',
             },
+            '/api': {
+                changeOrigin: true,
+                target: 'http://127.0.0.1:8000',
+            },
+            '/health': {
+                changeOrigin: true,
+                target: 'http://127.0.0.1:8000',
+            },
+            '/payment': {
+                changeOrigin: true,
+                target: 'http://127.0.0.1:8000',
+            },
+            '/payments': {
+                changeOrigin: true,
+                target: 'http://127.0.0.1:8000',
+            },
+            '/marketplace': {
+                changeOrigin: true,
+                target: 'http://127.0.0.1:8000',
+            },
+            '/auth': {
+                changeOrigin: true,
+                target: 'http://127.0.0.1:8000',
+            },
         },
     },
     css: {

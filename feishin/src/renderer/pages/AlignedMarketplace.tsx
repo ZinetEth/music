@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import {
     getMarketplacePlaylists,
     getMarketplaceSongs,
@@ -6,15 +7,18 @@ import {
     purchaseSong,
     savePlaylist,
     handleApiError,
-    type LegacyPlaylistMarketplace,
-    type LegacySongMarketplace,
     getBackendUserId,
 } from '/@/renderer/api/aligned-client';
-import { Button } from '/@/shared/components/button/button';
-import { Group } from '/@/shared/components/group/group';
 import { Stack } from '/@/shared/components/stack/stack';
 import { Text } from '/@/shared/components/text/text';
 import { toast } from '/@/shared/components/toast/toast';
+import { AppRoute } from '/@/renderer/router/routes';
+import { 
+    ResponsiveLayout, 
+    ResponsiveGrid, 
+    ResponsiveCard, 
+    ResponsiveButton 
+} from '/@/renderer/components/ResponsiveLayout';
 
 const AlignedMarketplacePage = () => {
     const userId = getBackendUserId();

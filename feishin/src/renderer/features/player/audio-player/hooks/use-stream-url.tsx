@@ -27,7 +27,8 @@ export function useSongUrl(
 
             try {
                 const userId = getBackendUserId();
-                const result = await canPlaySong(userId, song.id);
+                // Fixed: backend expects (songId, userId) to match /can-play/{song_id}/{user_id}
+                const result = await canPlaySong(song.id, userId);
                 const allowed = Boolean(result?.allowed);
 
                 if (!allowed) {

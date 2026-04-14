@@ -24,6 +24,7 @@ const ProfilePage = lazy(() => import('/@/renderer/pages/Profile'));
 // Aligned pages (current working implementation)
 const AlignedMarketplacePage = lazy(() => import('/@/renderer/pages/AlignedMarketplace'));
 const AlignedPaymentsPage = lazy(() => import('/@/renderer/pages/AlignedPayments'));
+const MusicPlatformHome = lazy(() => import('/@/renderer/pages/MusicPlatformHome'));
 
 // Future refactored pages (not yet ready)
 const RefactoredMarketplacePage = lazy(() => import('/@/renderer/pages/RefactoredMarketplace'));
@@ -61,12 +62,12 @@ const InitialLandingRoute = () => <Navigate replace to={getInitialConsumerRoute(
 export const consumerRoutes = (
     <Route element={<ConsumerShell />}>
         <Route element={<InitialLandingRoute />} index />
-        <Route element={<HomeRoute />} path={AppRoute.HOME} />
+        <Route element={<MusicPlatformHome />} path={AppRoute.HOME} />
         <Route element={<ConsumerSearchRoute />} path={AppRoute.SEARCH} />
         <Route element={<ConsumerLibraryRoute />} path={AppRoute.LIBRARY} />
         <Route element={<NowPlayingRoute />} path={AppRoute.NOW_PLAYING} />
-        <Route element={<HomeRoute />} path={AppRoute.FAVORITES} />
-        <Route element={<HomeRoute />} path={AppRoute.SETTINGS} />
+        <Route element={<MusicPlatformHome />} path={AppRoute.FAVORITES} />
+        <Route element={<MusicPlatformHome />} path={AppRoute.SETTINGS} />
         
         {/* Implementation-based routing */}
         <Route 

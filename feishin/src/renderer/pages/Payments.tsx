@@ -15,12 +15,17 @@ const PaymentsPage = () => {
             const result = await createPayment({
                 amount,
                 method: 'telebirr',
-                type,
+                payment_type: type, // Aligned with backend 'payment_type' field
                 user_id: userId,
             });
 
+            // Support for H5/Web redirect flows (Telebirr Official/Chapa)
+            if (result.redirect_url) {
+                window.open(result.redirect_url, '_blank');
+            }
+
             toast.success({
-                message: `Payment ${result.id} created with status ${result.status}.`,
+                message: `Payment ${result.payment_id || result.id} created with status ${result.status}.`,
                 title: 'Payments',
             });
         } catch (error: any) {

@@ -7,11 +7,11 @@
 
 import axios from 'axios';
 
-// Backend API URL
+// Backend API URL - use relative URL for Vite proxy
 const BACKEND_API_URL = 
     ((import.meta as any).env?.BACKEND_API as string | undefined) ||
     ((import.meta as any).env?.VITE_BACKEND_API as string | undefined) ||
-    'http://localhost:8000';
+    ''; // Use relative URL for Vite proxy
 
 // Create client
 export const backendClient = axios.create({
@@ -56,6 +56,8 @@ export interface LegacyPayment {
     playlist_id?: string;
     status: string;
     created_at: string;
+    redirect_url?: string; // Added to mirror expected H5 payment redirect flow
+    payment_id?: number; // Added to mirror usage in Payments.tsx (e.g., result.payment_id || result.id)
 }
 
 export interface LegacyPlaylistMarketplace {
@@ -104,14 +106,14 @@ export const createPayment = async (payload: {
     user_id: number | string;
     payment_type?: string;
 }) => {
-    const { data } = await backendClient.post('/payments/create', payload);
+    const { data } = await backendClient.post('/payment/create', payload);
     return data as LegacyPayment;
 };
 
 export const confirmPayment = async (payload: {
     payment_id: number;
 }) => {
-    const { data } = await backendClient.post('/payments/confirm', payload);
+    const { data } = await backendClient.post('/payment/confirm', payload);
     return data as {
         payment_id: number;
         status: string;
@@ -122,7 +124,7 @@ export const confirmPayment = async (payload: {
 
 // Marketplace API (Legacy Routes)
 export const getMarketplacePlaylists = async () => {
-    const { data } = await backendClient.get('/marketplace/playlists');
+    const { data } = await backendClient.get('/marketplace');
     return data as LegacyPlaylistMarketplace[];
 };
 
@@ -135,7 +137,7 @@ export const purchasePlaylist = async (payload: {
     buyer_id: number;
     playlist_id: string;
 }) => {
-    const { data } = await backendClient.post('/marketplace/buy', payload);
+    const { data } = await backendClient.post('/marketplace/buy-playlist', payload);
     return data as {
         buyer_id: number;
         purchased: boolean;
@@ -205,7 +207,7 @@ export const checkSubscription = async (userId: string) => {
 
 // Recommendations API
 export const getRecommendations = async (userId: string, location?: string) => {
-    const { data } = await backendClient.get('/recommendations/for-you', {
+    const { data } = await backendClient.get('/recommendations/playlists', {
         params: { location, user_id: userId }
     });
     return data as any;
