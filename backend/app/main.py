@@ -18,6 +18,7 @@ from app.api.routers import (
     payments_router,
     recommendations_router,
 )
+from app.api.v1 import api_router as api_v1_router
 from app.api.health import router as health_router
 from app.api.auth import router as auth_router
 from app.core.logging import configure_logging, get_logger
@@ -148,6 +149,7 @@ app.include_router(core_router)
 app.include_router(marketplace_router)
 app.include_router(payments_router)
 app.include_router(calendar_router)
+app.include_router(api_v1_router)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(recommendations_router)

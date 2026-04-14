@@ -11,7 +11,7 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 
 @router.get("/playlists", response_model=schemas.PlaylistRecommendationResponse)
-def recommend_playlists(
+def playlist_recommendations(
     date_str: str | None = Query(default=None, alias="date"),
     db: Session = Depends(get_db),
 ):
@@ -19,25 +19,8 @@ def recommend_playlists(
     return RecommendationService(db).recommend_playlists(target_date=target_date)
 
 
-@router.get("/hybrid-feed", response_model=schemas.HybridRecommendationResponse)
-def hybrid_feed(
-    date_str: str | None = Query(default=None, alias="date"),
-    location: str | None = Query(default=None),
-    limit: int = Query(default=10, ge=1, le=50),
-    user_id: int | None = Query(default=None),
-    db: Session = Depends(get_db),
-):
-    target_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else None
-    return RecommendationService(db).get_hybrid_feed(
-        user_id=user_id,
-        location=location,
-        limit=limit,
-        target_date=target_date,
-    )
-
-
-@router.get("/for-you", response_model=schemas.PersonalizedFeedResponse)
-def for_you(
+@router.get("/feed", response_model=schemas.PersonalizedFeedResponse)
+def personalized_feed(
     user_id: int,
     location: str | None = Query(default=None),
     limit: int = Query(default=12, ge=1, le=50),
@@ -58,6 +41,23 @@ def for_you(
         raise
 
 
+@router.get("/hybrid", response_model=schemas.HybridRecommendationResponse)
+def hybrid_feed(
+    user_id: int | None = None,
+    location: str | None = Query(default=None),
+    limit: int = Query(default=10, ge=1, le=50),
+    date_str: str | None = Query(default=None, alias="date"),
+    db: Session = Depends(get_db),
+):
+    target_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else None
+    return RecommendationService(db).get_hybrid_feed(
+        user_id=user_id,
+        location=location,
+        limit=limit,
+        target_date=target_date,
+    )
+
+
 @router.get("/trending", response_model=schemas.TrendingFeedResponse)
 def trending(
     location: str | None = Query(default=None),
@@ -66,19 +66,3 @@ def trending(
 ):
     return RecommendationService(db).get_trending_feed(location=location, limit=limit)
 
-
-@router.get("", response_model=schemas.PersonalizedFeedResponse)
-def recommendations_root(
-    user_id: int,
-    location: str | None = Query(default=None),
-    limit: int = Query(default=12, ge=1, le=50),
-    date_str: str | None = Query(default=None, alias="date"),
-    db: Session = Depends(get_db),
-):
-    return for_you(
-        user_id=user_id,
-        location=location,
-        limit=limit,
-        date_str=date_str,
-        db=db,
-    )

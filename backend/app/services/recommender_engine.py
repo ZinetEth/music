@@ -1,18 +1,16 @@
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from math import exp, sqrt
+from math import sqrt
 from typing import Any
 
-from app.api.routers.calendar import _gregorian_to_ethiopian
-
-
-@dataclass
-class TasteVector:
-    qenet_mode_affinity: dict[str, float]
-    genre_affinity: dict[str, float]
-    average_tempo: float
-    acoustic_signature: dict[str, float]
+from app.services.recommendation_service import (
+    FastRecommendationLayer,
+    RankedSong,
+    RankingEngine,
+    RecommendationService,
+    SessionOptimizer,
+    TasteVector,
+)
 
 
 @dataclass
@@ -31,109 +29,6 @@ class SongCandidate:
     qenet_mode: str | None = None
     tempo: float = 0.0
     extracted_features: dict[str, Any] | None = None
-
-
-class PopularityModel:
-    def score(self, song: SongCandidate) -> float:
-        return (
-            (song.play_count_7d * 0.6)
-            + (song.like_count_7d * 1.8)
-            - (song.skip_rate * 20.0)
-        )
-
-
-class RecencyModel:
-    def score(self, song: SongCandidate, target_date: datetime.date) -> float:
-        if not song.release_date:
-            return 0.0
-        released = datetime.strptime(song.release_date, "%Y-%m-%d").date()
-        age_days = max((target_date - released).days, 0)
-        return exp(-age_days / 45.0) * 100.0
-
-
-class LocationModel:
-    def score(self, song: SongCandidate, location: str | None) -> float:
-        if not location or not song.country:
-            return 0.0
-        loc = location.strip().lower()
-        country = song.country.strip().lower()
-        return 35.0 if loc == country else 0.0
-
-
-class HolidayContextModel:
-    def __init__(self, holiday_rules: list[dict]):
-        self.holiday_rules = holiday_rules
-
-    def detect_holiday_key(self, target_date: datetime.date) -> str | None:
-        _eth_year, eth_month, eth_day = _gregorian_to_ethiopian(
-            target_date.year, target_date.month, target_date.day
-        )
-        for rule in self.holiday_rules:
-            if rule["eth_month"] == eth_month and rule["eth_day"] == eth_day:
-                return rule["key"]
-        return None
-
-    def score(self, song: SongCandidate, holiday_key: str | None) -> float:
-        if not holiday_key:
-            return 0.0
-        if holiday_key in song.navidrome_song_id.lower():
-            return 40.0
-        if song.playlist_id and holiday_key in song.playlist_id.lower():
-            return 40.0
-        if song.genre.lower() in {"traditional", "gospel"}:
-            return 12.0
-        return 6.0
-
-
-class HybridRecommender:
-    def __init__(self, holiday_rules: list[dict]):
-        self.popularity = PopularityModel()
-        self.recency = RecencyModel()
-        self.location = LocationModel()
-        self.holiday = HolidayContextModel(holiday_rules)
-
-    def rank(
-        self,
-        songs: list[SongCandidate],
-        target_date: datetime.date,
-        location: str | None,
-        limit: int = 20,
-    ) -> tuple[list[dict], str | None, str]:
-        holiday_key = self.holiday.detect_holiday_key(target_date)
-        scored: list[dict] = []
-        for song in songs:
-            popularity_score = self.popularity.score(song)
-            recency_score = self.recency.score(song, target_date)
-            location_score = self.location.score(song, location)
-            holiday_score = self.holiday.score(song, holiday_key)
-
-            final_score = (
-                popularity_score * 0.45
-                + recency_score * 0.25
-                + location_score * 0.15
-                + holiday_score * 0.15
-            )
-
-            scored.append(
-                {
-                    "song_id": song.navidrome_song_id,
-                    "title": song.title,
-                    "artist": song.artist,
-                    "genre": song.genre,
-                    "qenet_mode": song.qenet_mode,
-                    "country": song.country,
-                    "score": round(final_score, 4),
-                    "score_breakdown": {
-                        "popularity": round(popularity_score, 4),
-                        "recency": round(recency_score, 4),
-                        "location": round(location_score, 4),
-                        "holiday_context": round(holiday_score, 4),
-                    },
-                }
-            )
-
-        ranked = sorted(scored, key=lambda song: song["score"], reverse=True)[:limit]
-        return ranked, holiday_key, "hybrid_heuristic"
 
 
 class PersonalizedRecommender:
@@ -157,15 +52,10 @@ class PersonalizedRecommender:
             right_values[f"acoustic:{key}"] = value
 
         left_values["tempo"] = left.average_tempo / 220.0 if left.average_tempo else 0.0
-        right_values["tempo"] = (
-            right.average_tempo / 220.0 if right.average_tempo else 0.0
-        )
+        right_values["tempo"] = right.average_tempo / 220.0 if right.average_tempo else 0.0
 
         keys = set(left_values) | set(right_values)
-        dot = sum(
-            left_values.get(key, 0.0) * right_values.get(key, 0.0)
-            for key in keys
-        )
+        dot = sum(left_values.get(key, 0.0) * right_values.get(key, 0.0) for key in keys)
         left_norm = sqrt(sum(value * value for value in left_values.values()))
         right_norm = sqrt(sum(value * value for value in right_values.values()))
         if left_norm == 0 or right_norm == 0:
@@ -198,16 +88,12 @@ class PersonalizedRecommender:
         vector: TasteVector,
     ) -> float:
         user_vectors: dict[int, TasteVector] = {}
-        song_to_user_weights: defaultdict[str, list[tuple[int, float]]] = (
-            defaultdict(list)
-        )
+        song_to_user_weights: defaultdict[str, list[tuple[int, float]]] = defaultdict(list)
 
         grouped_by_user: defaultdict[int, list[Any]] = defaultdict(list)
         for event in events:
             grouped_by_user[event.user_id].append(event)
-            song_to_user_weights[event.song.navidrome_song_id].append(
-                (event.user_id, float(event.weight))
-            )
+            song_to_user_weights[event.song.navidrome_song_id].append((event.user_id, float(event.weight)))
 
         for peer_id, peer_events in grouped_by_user.items():
             if peer_id == user_id:
@@ -233,16 +119,10 @@ class PersonalizedRecommender:
             if total_weight <= 0:
                 continue
             user_vectors[peer_id] = TasteVector(
-                qenet_mode_affinity={
-                    key: value / total_weight for key, value in qenet.items()
-                },
-                genre_affinity={
-                    key: value / total_weight for key, value in genres.items()
-                },
+                qenet_mode_affinity={key: value / total_weight for key, value in qenet.items()},
+                genre_affinity={key: value / total_weight for key, value in genres.items()},
                 average_tempo=weighted_tempo / total_weight if total_weight else 0.0,
-                acoustic_signature={
-                    key: value / total_weight for key, value in acoustic_totals.items()
-                },
+                acoustic_signature={key: value / total_weight for key, value in acoustic_totals.items()},
             )
 
         score = 0.0
@@ -264,8 +144,6 @@ class PersonalizedRecommender:
         location: str | None,
         limit: int,
     ) -> list[dict]:
-        popularity = PopularityModel()
-        location_model = LocationModel()
         scored: list[dict] = []
 
         for song in songs:
@@ -280,14 +158,14 @@ class PersonalizedRecommender:
                 events=events,
                 vector=taste_vector,
             )
-            popularity_score = popularity.score(song)
-            regional_score = location_model.score(song, location)
+            popularity_score = (song.play_count_7d * 0.6) + (song.like_count_7d * 1.8) - (song.skip_rate * 20.0)
+            regional_score = 35.0 if location and song.country and location.strip().lower() == song.country.strip().lower() else 0.0
 
             final_score = (
                 content_score * 0.55
                 + collaborative_score * 0.25
-                + popularity_score * 0.1
-                + regional_score * 0.1
+                + popularity_score * 0.10
+                + regional_score * 0.10
             )
             scored.append(
                 {
@@ -319,6 +197,9 @@ class TrendingEngine:
         location: str | None,
         limit: int,
     ) -> list[dict]:
+        from datetime import UTC, datetime
+        from math import exp
+
         now = datetime.now(UTC)
         event_totals: defaultdict[str, float] = defaultdict(float)
         regional_totals: defaultdict[str, float] = defaultdict(float)
@@ -328,32 +209,20 @@ class TrendingEngine:
             decay = exp(-hours_ago / 6.0)
             weighted = float(event.weight) * decay
             event_totals[event.song.navidrome_song_id] += weighted
-            if (
-                location
-                and event.location
-                and event.location.strip().lower() == location.strip().lower()
-            ):
+            if location and event.location and event.location.strip().lower() == location.strip().lower():
                 regional_totals[event.song.navidrome_song_id] += weighted
 
         scored = []
         for song in songs:
             momentum = event_totals.get(song.navidrome_song_id, 0.0)
             regional = regional_totals.get(song.navidrome_song_id, 0.0) * 12.0
-            playlist_signal = (
-                playlist_stats.get(song.playlist_id) if song.playlist_id else None
-            )
+            playlist_signal = playlist_stats.get(song.playlist_id) if song.playlist_id else None
             social = (
                 ((playlist_signal.save_count if playlist_signal else 0) * 0.8)
                 + ((playlist_signal.share_count if playlist_signal else 0) * 0.4)
                 + (song.like_count_7d * 0.2)
             )
-            hot_score = (
-                momentum * 100
-                + regional
-                + social
-                + (song.play_count_7d * 0.05)
-                - (song.skip_rate * 10)
-            )
+            hot_score = momentum * 100 + regional + social + (song.play_count_7d * 0.05) - (song.skip_rate * 10)
             scored.append(
                 {
                     "song_id": song.navidrome_song_id,
@@ -369,3 +238,16 @@ class TrendingEngine:
                 }
             )
         return sorted(scored, key=lambda row: row["hot_score"], reverse=True)[:limit]
+
+
+__all__ = [
+    "FastRecommendationLayer",
+    "PersonalizedRecommender",
+    "RankedSong",
+    "RankingEngine",
+    "RecommendationService",
+    "SessionOptimizer",
+    "SongCandidate",
+    "TasteVector",
+    "TrendingEngine",
+]
