@@ -241,6 +241,8 @@ class SongRecommendationOut(BaseModel):
     country: str | None = None
     score: float
     score_breakdown: dict[str, float]
+    source: str = "internal"
+    source_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class HybridRecommendationResponse(BaseModel):
@@ -283,6 +285,8 @@ class TrendingSongOut(BaseModel):
     momentum_score: float
     regional_boost: float
     social_proof: float
+    source: str = "internal"
+    source_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class TrendingFeedResponse(BaseModel):

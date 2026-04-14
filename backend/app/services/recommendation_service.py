@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.repositories.recommendation_repo import RecommendationRepository
+from app.services.youtube_signal_service import YouTubeSignalService, YouTubeTrend
 from app.utils.helpers import gregorian_to_ethiopian
 
 
@@ -25,6 +26,7 @@ class RankedSong:
     song: models.LibrarySong
     score: float
     score_breakdown: dict[str, float]
+    source_metadata: dict[str, str]
 
 
 class FastRecommendationLayer:
@@ -32,6 +34,7 @@ class FastRecommendationLayer:
 
     def __init__(self, repository: RecommendationRepository):
         self.repository = repository
+        self.youtube_signals = YouTubeSignalService()
 
     def fetch_candidates(self, user_id: int, limit: int = 200) -> list[models.LibrarySong]:
         unheard = self.repository.songs.list_unheard_for_user(user_id, limit=limit)
@@ -56,6 +59,7 @@ class RankingEngine:
 
     def __init__(self, repository: RecommendationRepository):
         self.repository = repository
+        self.youtube_signals = YouTubeSignalService()
 
     def build_taste_vector(self, user: models.User) -> TasteVector:
         safe = user.taste_vector or {}
@@ -88,6 +92,7 @@ class RankingEngine:
         peer_events = self.repository.playback.list_recent_events(hours=24 * 30)
         peer_vectors = self._build_peer_vectors(user.id, peer_events)
         holiday_key = holiday_rule.key if holiday_rule else None
+        youtube_trends = self.youtube_signals.get_trending_tracks(location)
 
         ranked: list[RankedSong] = []
         for song in candidates:
@@ -97,6 +102,7 @@ class RankingEngine:
             recency = self._recency(song, target_date)
             regional = self._regional(song, location)
             seasonal = self._seasonal(song, holiday_key)
+            youtube_boost, youtube_metadata = self._youtube_trend_boost(song, youtube_trends)
 
             final_score = (
                 content_affinity * 0.38
@@ -104,7 +110,8 @@ class RankingEngine:
                 + popularity * 0.16
                 + recency * 0.10
                 + regional * 0.08
-                + seasonal * 0.06
+                + seasonal * 0.04
+                + youtube_boost * 0.02
             )
             ranked.append(
                 RankedSong(
@@ -117,7 +124,9 @@ class RankingEngine:
                         "recency": round(recency, 4),
                         "regional_context": round(regional, 4),
                         "seasonal_context": round(seasonal, 4),
+                        "youtube_trend": round(youtube_boost, 4),
                     },
+                    source_metadata=youtube_metadata,
                 )
             )
 
@@ -273,6 +282,50 @@ class RankingEngine:
             return 10.0
         return 0.0
 
+    def _youtube_trend_boost(
+        self,
+        song: models.LibrarySong,
+        trends: list[YouTubeTrend],
+    ) -> tuple[float, dict[str, str]]:
+        if not trends:
+            return 0.0, {}
+
+        song_title = song.title.lower()
+        song_artist = song.artist.lower()
+        song_genre = song.genre.lower()
+
+        for trend in trends:
+            trend_title = trend.title.lower()
+            trend_channel = trend.channel_title.lower()
+
+            title_match = song_title in trend_title or trend_title in song_title
+            artist_match = song_artist in trend_title or song_artist in trend_channel
+            genre_match = song_genre in trend_title or song_genre in trend.tags
+
+            if artist_match and title_match:
+                return 100.0, {
+                    "youtube_video_id": trend.video_id,
+                    "youtube_region": trend.region_code,
+                    "youtube_title": trend.title,
+                    "youtube_channel": trend.channel_title,
+                }
+            if artist_match:
+                return 70.0, {
+                    "youtube_video_id": trend.video_id,
+                    "youtube_region": trend.region_code,
+                    "youtube_title": trend.title,
+                    "youtube_channel": trend.channel_title,
+                }
+            if genre_match:
+                return 35.0, {
+                    "youtube_video_id": trend.video_id,
+                    "youtube_region": trend.region_code,
+                    "youtube_title": trend.title,
+                    "youtube_channel": trend.channel_title,
+                }
+
+        return 0.0, {}
+
 
 class SessionOptimizer:
     """Re-order top candidates to encourage longer continuous listening."""
@@ -424,6 +477,8 @@ class RecommendationService:
                     score=item.score,
                     score_breakdown=item.score_breakdown
                     | {"session_id": float(session.id)},
+                    source="youtube+internal" if item.source_metadata else "internal",
+                    source_metadata=item.source_metadata,
                 )
                 for item in optimized
             ],
@@ -475,6 +530,8 @@ class RecommendationService:
                     country=item.song.country,
                     score=item.score,
                     score_breakdown=item.score_breakdown,
+                    source="youtube+internal" if item.source_metadata else "internal",
+                    source_metadata=item.source_metadata,
                 )
                 for item in ranked
             ],
@@ -506,6 +563,7 @@ class RecommendationService:
         songs = self.repository.songs.list_catalog(limit=max(limit * 8, 40))
         playlist_stats = self.repository.songs.list_playlist_signals()
         events = self.repository.playback.list_recent_events(hours=24 * 7)
+        youtube_trends = self.ranking_engine.youtube_signals.get_trending_tracks(location)
         now = datetime.utcnow()
 
         event_totals: defaultdict[str, float] = defaultdict(float)
@@ -530,6 +588,10 @@ class RecommendationService:
             )
             momentum = event_totals.get(song.navidrome_song_id, 0.0)
             regional = regional_totals.get(song.navidrome_song_id, 0.0) * 12.0
+            youtube_boost, youtube_metadata = self.ranking_engine._youtube_trend_boost(
+                song,
+                youtube_trends,
+            )
             social = (
                 ((playlist_signal.save_count if playlist_signal else 0) * 0.8)
                 + ((playlist_signal.share_count if playlist_signal else 0) * 0.4)
@@ -541,6 +603,7 @@ class RecommendationService:
                 + social
                 + (song.play_count_7d * 0.05)
                 - (song.skip_rate * 10)
+                + youtube_boost * 0.15
             )
             scored.append(
                 schemas.TrendingSongOut(
@@ -554,6 +617,8 @@ class RecommendationService:
                     momentum_score=round(momentum * 100, 4),
                     regional_boost=round(regional, 4),
                     social_proof=round(social, 4),
+                    source="youtube+internal" if youtube_metadata else "internal",
+                    source_metadata=youtube_metadata,
                 )
             )
 
